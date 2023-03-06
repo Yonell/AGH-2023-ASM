@@ -1,8 +1,9 @@
 data1 segment
 	input1 db "dwa plus trzy$"
-	numberstring1 db "00000000$"
-	operation db "00000$"
-	numberstring2 db "00000000$"
+    debug db "debug$"
+	numberstring1 db 9 dup(?)
+	operation db 6 dup(?)
+	numberstring2 db 9 dup(?)
 	numberstrings db "zero$", "jeden$", "dwa$", "trzy$", "cztery$", "piec$", "szesc$", "siedem$", "osiem$", "dziewiec$"
 data1 ends
 
@@ -27,31 +28,26 @@ start1:
 	int 21h
 
 split_string:
-	pop bx
-	mov si, 0
-	
+	pop si ; "argumentem" funkcji jest string source
+    
+	mov di, offset numberstring1 ; destination ustawiam na numberstring1
+    
 	pre_split_string_loop1:
-	cmp byte ptr [bx+si], 20h ; Petla sprawdza przed każdym przejsciem, czy [bx + si] jest spacja. Jesli jest to wychodzi
+	cmp si, ' ' ; Petla sprawdza przed każdym przejsciem, czy si jest spacja. Jesli jest to wychodzi
 	je exit_split_string_loop1
 		
-		mov ax, offset numberstring1
-		push byte ptr [bx+si]
-		pop cx
-		mov byte ptr [ax+si], cx
+		mov di, si ; kopiuje po znaku
 		
 		inc si
+        inc di
 	jmp pre_split_string_loop1
 	exit_split_string_loop1:
-	
-	push bx	
-	mov bx, offset numberstring1
-	mov ch, '$'
-	mov byte ptr ds:[bx + si], ch
-	pop bx
+    
+	mov di, '$' ; ustawiam dolar na koncu numberstring1
 	
 	mov dx, offset numberstring1
 	mov ah, 9
-	int 21h 
+	int 21h ; wypisuje numberstring1
 	ret
 	
 code1 ends
