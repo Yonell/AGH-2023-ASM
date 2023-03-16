@@ -21,6 +21,7 @@ data1 segment
     error_mssg_default db "Some error occured!", 10, 13, "$"
     error_mssg1 db "Too many arguments!", 10, 13, "$"
     error_mssg2 db "Too little arguments!", 10, 13, "$"
+    error_mssg3 db "Parsing error! Some strings ended up empty!", 10, 13, "$"
 data1 ends
 
 code1 segment
@@ -32,7 +33,7 @@ start1:
 	mov ax, seg data1
 	mov ds, ax
     
-	mov dx, offset output1 ; Wypisanie outputu
+	mov dx, offset output1 ; Wypisanie komunikatu
 	mov ah, 9
 	int 21h 
     
@@ -44,20 +45,44 @@ start1:
 	mov ah, 9
 	int 21h 
     
-    ; TODO zrobic usuwanie spacji z konca
+    call remove_spaces_on_the_end
     
     call call_split_strings
     
-    call handle_errors_main
-    
     call yield_input
+    
+    call handle_errors_main
     
     mov dx, offset debug
 	mov ah, 9
-	int 21h
+	;int 21h
 	
 	mov ah, 4ch
 	int 21h
+	
+remove_spaces_on_the_end:
+	mov al, ds:[inputLength]
+	dec al
+	mov bx, offset input1
+	xor ah, ah
+	add bx, ax
+	
+	mov cx, offset input1
+	dec cx
+	
+	pre_loop_remove_spaces_on_the_end:
+	cmp byte ptr ds:[bx], ' '
+	jne exit_loop_remove_spaces_on_the_end
+	cmp bx, cx
+	je exit_loop_remove_spaces_on_the_end
+	
+	mov byte ptr ds:[bx], '$'
+	dec bx
+	
+	jmp pre_loop_remove_spaces_on_the_end
+	exit_loop_remove_spaces_on_the_end:
+	
+	ret
     
 handle_errors_main:
     
@@ -71,6 +96,9 @@ handle_errors_main:
     mov ah, 2
     cmp byte ptr ds:[bx], ah
     je too_little_arguments_error_main
+    mov ah, 3
+    cmp byte ptr ds:[bx], ah
+    je empty_operation_or_number_error_main
     
     jne other_error_main
     
@@ -85,6 +113,12 @@ handle_errors_main:
     mov ah, 9
     int 21h
     jmp other_error_main
+	
+	empty_operation_or_number_error_main:
+    mov dx, offset error_mssg3
+    mov ah, 9
+    int 21h
+    jmp other_error_main
     
     other_error_main:
     mov dx, offset error_mssg_default
@@ -95,6 +129,8 @@ handle_errors_main:
     int 21h
     
     no_error_main:
+	
+	ret
     
 
 split_string:   ; funkcja dzielaca string na wyrazy. po wykonaniu ustawia si i dx na offset tuz po wyrazie. 
@@ -149,22 +185,37 @@ call_split_strings:
     jne no_too_many_arguments_error_call_split_strings
     
     mov al, 1
-    mov bx, offset error1
-    mov ds:[bx], al
+    mov ds:[error1], al
     
     no_too_many_arguments_error_call_split_strings:
     
     mov ah, '$'
-    mov bx, offset numberstring2
-    mov al, ds:[bx]
+    mov al, ds:[numberstring2]
     cmp ah, al
     jne no_too_little_arguments_error_call_split_strings
     
     mov al, 2
-    mov bx, offset error1
-    mov ds:[bx], al
+    mov ds:[error1], al
     
     no_too_little_arguments_error_call_split_strings:
+    
+    mov ah, '$'
+    mov al, ds:[numberstring1]
+    cmp ah, al
+    je parsing_error_call_split_strings
+    
+    mov ah, '$'
+    mov al, ds:[operation]
+    cmp ah, al
+    je parsing_error_call_split_strings
+    
+	jmp no_parsing_error_call_split_strings
+    
+    parsing_error_call_split_strings:
+    mov al, 3
+    mov ds:[error1], al
+	
+	no_parsing_error_call_split_strings:
     
     
     ret
