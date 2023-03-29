@@ -10,9 +10,13 @@ data1 segment
     input_ending db ?         ; zmienna przechowujaca czym skonczyl sie string w split_string
     
 	numberstrings db "zero$", "jeden$", "dwa$", "trzy$", "cztery$", "piec$", "szesc$", "siedem$", "osiem$", "dziewiec$"
+	numberstringsoffsets db 0, 5, 11, 15, 20, 27, 32, 38, 45, 51
+	
+	number1 db ?
+	number2 db ?
     
     newline db 10, 13, "$"
-    debug db "debug$", 10, 13, "$"
+    debug db "debug", 10, 13, "$"
     output1 db "Wpisz operacje: $"
     output2 db "Operacja: $"
     output3 db "Liczba 1: $"
@@ -22,6 +26,7 @@ data1 segment
     error_mssg1 db "Too many arguments!", 10, 13, "$"
     error_mssg2 db "Too little arguments!", 10, 13, "$"
     error_mssg3 db "Parsing error! Some strings ended up empty!", 10, 13, "$"
+    error_mssg4 db "Number parsing error!", 10, 13, "$"
 data1 ends
 
 code1 segment
@@ -50,15 +55,110 @@ start1:
     call call_split_strings
     
     call yield_input
+	
+	call fill_the_numbers
     
     call handle_errors_main
-    
-    mov dx, offset debug
-	mov ah, 9
-	;int 21h
 	
 	mov ah, 4ch
 	int 21h
+	
+fill_the_numbers: ; broken
+	mov cx, 0
+	pre_loop1_fill_the_numbers:
+	cmp cl, 10
+	je error_fill_the_numbers
+		mov si, offset numberstring1
+		mov di, offset numberstrings
+		mov bx, offset numberstringsoffsets
+		add bx, cx
+		mov ah, 0
+		mov al, byte ptr ds:[bx]
+		add di, ax
+		call str_cmp_equal
+		cmp ax, 1
+		je found_the_string1
+		inc cl
+    
+		mov dx, di
+		mov ah, 9
+		;int 21h
+	jmp pre_loop1_fill_the_numbers
+	
+	found_the_string1:
+	
+	mov byte ptr ds:[number1], cl
+	
+	mov cl, 0
+	pre_loop2_fill_the_numbers:
+	cmp cl, 10
+	je error_fill_the_numbers
+		mov si, offset numberstring1
+		mov di, offset numberstrings
+		mov bx, offset numberstringsoffsets
+		add bx, cx
+		mov ah, 0
+		mov al, byte ptr ds:[bx]
+		add di, ax
+		call str_cmp_equal
+		cmp ax, 1
+		je found_the_string2
+		inc cl
+	jmp pre_loop2_fill_the_numbers
+	
+	found_the_string2:
+	
+	mov si, offset number2
+	mov byte ptr ds:[si], cl
+	
+	ret
+	
+	error_fill_the_numbers:
+	mov al, 4
+	mov byte ptr ds:[error1], al
+	
+	ret
+	
+	
+	
+	
+str_cmp_equal: ; expects si and di to be offsets of the strings to compare
+	push si
+	push di
+	push ax
+	pre_loop_str_cmp_equal:
+	cmp byte ptr ds:[si], '$'
+	je exit_loop_str_cmp_equal
+	
+		mov al, byte ptr ds:[di]
+		cmp byte ptr ds:[si], al
+		jne return_false_str_cmp_equal
+		
+		inc si
+		inc di
+	jmp pre_loop_str_cmp_equal
+	exit_loop_str_cmp_equal:
+	
+	mov al, byte ptr ds:[si]
+	cmp byte ptr ds:[di], al
+	je return_true_str_cmp_equal
+	jne return_false_str_cmp_equal
+	
+	return_false_str_cmp_equal:
+		pop ax
+		pop di
+		pop si
+		mov ah, 0
+		ret
+	
+	return_true_str_cmp_equal:
+		pop ax
+		pop di
+		pop si
+		mov ah, 1
+		ret
+	
+	ret
 	
 remove_spaces_on_the_end:
 	mov al, ds:[inputLength]
@@ -99,6 +199,9 @@ handle_errors_main:
     mov ah, 3
     cmp byte ptr ds:[bx], ah
     je empty_operation_or_number_error_main
+    mov ah, 4
+    cmp byte ptr ds:[bx], ah
+    je parsing_number_error_main
     
     jne other_error_main
     
@@ -116,6 +219,12 @@ handle_errors_main:
 	
 	empty_operation_or_number_error_main:
     mov dx, offset error_mssg3
+    mov ah, 9
+    int 21h
+    jmp other_error_main
+	
+	parsing_number_error_main:
+    mov dx, offset error_mssg4
     mov ah, 9
     int 21h
     jmp other_error_main
