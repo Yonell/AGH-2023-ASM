@@ -9,10 +9,10 @@ data1 segment
     error1 db 0               ; zmienna przechowujaca kod bledu
     input_ending db ?         ; zmienna przechowujaca czym skonczyl sie string w split_string
     
-	numberstrings db "zero$", "jeden$", "dwa$", "trzy$", "cztery$", "piec$", "szesc$", "siedem$", "osiem$", "dziewiec$"
-	numberstringsoffsets dw 0, 5, 11, 15, 20, 27, 32, 38, 45, 51
+	numberstrings db "zero$", "jeden$", "dwa$", "trzy$", "cztery$", "piec$", "szesc$", "siedem$", "osiem$", "dziewiec$" ; tablica lancuchow znakow do konwersji slowa na liczbe.
+	numberstringsoffsets dw 0, 5, 11, 15, 20, 27, 32, 38, 45, 51 ; tablica przesuniec do pierwszych liter
 	
-	extendednumberstrings db "minus dziewiec$", "minus osiem$", "minus siedem$", "minus szesc$", "minus piec$", "minus cztery$", "minus trzy$", "minus dwa$", "minus jeden$", "zero$"
+	extendednumberstrings db "minus dziewiec$", "minus osiem$", "minus siedem$", "minus szesc$", "minus piec$", "minus cztery$", "minus trzy$", "minus dwa$", "minus jeden$", "zero$" ; taka sama struktura jak wyzej, ale dla liczb od -9 do 81
 	decoy1 db "jeden$", "dwa$", "trzy$", "cztery$", "piec$", "szesc$", "siedem$", "osiem$", "dziewiec$", "dziesiec$"
 	decoy2 db "jedenascie$", "dwanascie$", "trzynascie$", "czternascie$", "pietnascie$", "szesnascie$", "siedemnascie$", "osiemnascie$", "dziewietnascie$", "dwadziescia$"
 	decoy3 db "dwadziescia jeden$", "dwadziescia dwa$", "dwadziescia trzy$", "dwadziescia cztery$", "dwadziescia piec$", "dwadziescia szesc$", "dwadziescia siedem$", "dwadziescia osiem$", "dwadziescia dziewiec$", "trzydziesci$"
@@ -32,16 +32,15 @@ data1 segment
 	decoy17 dw 1018, 1038, 1056, 1075, 1096, 1115, 1135, 1156, 1176, 1199
 	decoy18 dw 1214, 1235, 1254, 1274, 1296, 1316, 1337, 1359, 1380, 1404, 1418
 									
-	plus db "plus$"
+	plus db "plus$"  ; slownie zapisane slowa operacji
 	minus db "minus$"
 	multiply db "razy$"
 	
-	number1 db ?
+	number1 db ? ; zmienne przechowujace liczby do wykonania operacji
 	number2 db ?
-	resultnumber db ?
-	result db 25 dup('$')
+	resultnumber dw ?
     
-    newline db 10, 13, "$"
+    newline db 10, 13, "$"       ; pomocnicze komunikaty do wyrzucania na ekran
     debug db "debug", 10, 13, "$"
     output1 db "Wpisz operacje: $"
     output2 db "Operacja: $"
@@ -78,122 +77,122 @@ start1:
 	mov ah, 9
 	int 21h 
     
-    call remove_spaces_and_CR_on_the_end
+    call remove_spaces_and_CR_on_the_end ; usuwa niepotrzebne znaki na koncu, ktore psuja wynik
     
-    call call_split_strings
+    call call_split_strings ; dzieli input na dwie liczby i operacje
     
-    ;call yield_input
+    ;call yield_input ; wyrzuca podzielone stringi na ekran
 	
-	call fill_the_numbers
+	call fill_the_numbers ; zamienia stringi w liczbach na liczby
     
-    call handle_errors_main
+    call handle_errors_main ; zajmuje sie wszelkimi bledami po drodze
 	
-	call use_the_operand
-	mov byte ptr ds:[resultnumber], al
+	call use_the_operand          ; wykonuje operacje miedzy dwoma liczbami i wpisuje wynik do ax
+	mov word ptr ds:[resultnumber], ax ; wpisuje wynik z ax do resultnumber
     
-    call handle_errors_main
+    call handle_errors_main ; znowu sprawdzam bledy
 	
-	call show_the_result
+	call show_the_result ; wyswietla wynik na ekran
 	
-	mov ah, 4ch
+	mov ah, 4ch ; konczy program
 	int 21h
 	
-show_the_result:
-	xor bx, bx
-	mov bl, byte ptr ds:[resultnumber]
-	add bx, 9
-	shl bx, 1
-	mov cx, word ptr ds:[extendednumberstringsoffsets + bx]
-	add cx, offset extendednumberstrings
+show_the_result: ; funkcja korzystajac z resultnumber, tablic stringow i komunikatow wypisuje na ekran wynik dzialania. Korzysta z: ax, bx, cx, dx
+	mov bx, word ptr ds:[resultnumber] ; wciagnij resultnumber z pamieci
+	add bx, 9 ; dodaj do niego 9 ( aby bx = 0 oznaczalo "minus dziewiec" w tablicy stringow )
+	shl bx, 1 ; pomnoz razy dwa ( bo mamy do czynienia z word pointr )
+	mov cx, word ptr ds:[extendednumberstringsoffsets + bx] ; zmapuj bx na offset wzgledem poczatku tablicy extendednumberstrings
+	add cx, offset extendednumberstrings ; dodaj offset do extendednumberstrings
+	; po tej operacji cx wskazuje na stringa z liczba szukana slownie
 	
-	mov dx, offset output6
+	mov dx, offset output6 ; wypisz komunikat
 	mov ah, 9
 	int 21h
 	
-	mov dx, cx
+	mov dx, cx ; wypisz slownie liczbe
 	mov ah, 9
 	int 21h
 	
-	mov dx, offset newline
+	mov dx, offset newline ; wypisz nowa linijke
 	mov ah, 9
 	int 21h
 	
 	ret
 	
-use_the_operand:
-	mov di, offset operation
+use_the_operand: ; sprawdza co jest w operation i wykonuje odpowiednia operacje. Korzysta z: ax, bx, si, di
+	mov di, offset operation ; jezeli operacja jest "plus" 
 	mov si, offset plus
-	call str_cmp_equal
+	call str_cmp_equal ; porownaj stringi w si i di
 	cmp ax, 1
-	je operation_is_plus_use_the_operand
-	mov di, offset operation
-	mov si, offset multiply
-	call str_cmp_equal
-	cmp ax, 1
-	je operation_is_multiply_use_the_operand
-	mov di, offset operation
+	je operation_is_plus_use_the_operand ; skocz do odpowiedniej linii
+	mov di, offset operation; j. w.
 	mov si, offset minus
 	call str_cmp_equal
 	cmp ax, 1
 	je operation_is_minus_use_the_operand
+	mov di, offset operation ; j. w.
+	mov si, offset multiply
+	call str_cmp_equal
+	cmp ax, 1
+	je operation_is_multiply_use_the_operand
 	
-	mov byte ptr ds:[error1], 5
+	mov byte ptr ds:[error1], 5 ; jezeli nie znalazlo operacji, to wpisz 5 do error1 i wyjdz z funkcji
 	ret
 	
 	operation_is_plus_use_the_operand:
-	xor ax, ax
+	xor ax, ax ; wyzeruj ax i bx
 	xor bx, bx
-	mov al, byte ptr ds:[number1]
+	mov al, byte ptr ds:[number1] ; ustaw na ich miejscu odpowiednie liczby
 	mov bl, byte ptr ds:[number2]
-	add ax, bx
+	add ax, bx ; wykonaj operacje
 	
 	ret
 	
 	operation_is_minus_use_the_operand:
-	xor ax, ax
+	xor ax, ax ; wyzeruj ax i bx
 	xor bx, bx
-	mov al, byte ptr ds:[number1]
+	mov al, byte ptr ds:[number1] ; ustaw na ich miejscu odpowiednie liczby
 	mov bl, byte ptr ds:[number2]
-	sub ax, bx
+	sub ax, bx ; wykonaj operacje
 	
 	ret
 	
 	operation_is_multiply_use_the_operand:
-	xor ax, ax
+	xor ax, ax ; wyzeruj ax i bx
 	xor bx, bx
-	mov al, byte ptr ds:[number1]
+	mov al, byte ptr ds:[number1] ; ustaw na ich miejscu odpowiednie liczby
 	mov bl, byte ptr ds:[number2]
-	imul bx
+	imul bx ; wykonaj operacje
 	
 	ret
 	
 	
 	
-fill_the_numbers:
-	mov cx, 0
-	pre_loop1_fill_the_numbers:
-	cmp cl, 10
+fill_the_numbers: ; znajduje w numberstrings odpowiednie stringi i odpowiednio uzupelnia number1 i number2. Korzysta z: ax, bx, cx, si, di
+	xor cx, cx
+	pre_loop1_fill_the_numbers: ; dla kazdej cyfry od 0 do 9 sprawdzam, czy odpowiednie stringi w numberstrings sa rowne wczytanemu, jesli tak, ide dalej
+	cmp cl, 10 ; jezeli dojdziemy do 10, to znalezlismy blad - nie ma takiego stringa, ktory jest rowny naszemu
 	je error_fill_the_numbers
 		mov si, offset numberstring1
-		mov di, offset numberstrings
-		mov bx, offset numberstringsoffsets
-		shl cx, 1
-		add bx, cx
+		mov di, offset numberstrings ; wczytuje wskaznik na pierwszy element
+		mov bx, offset numberstringsoffsets ; wczytuje wskaznik na tablice przesuniec
+		shl cx, 1 ; mnoze cx razy dwa ( poniewaz uzywam worda i offsety sa podwojne )
+		add bx, cx ; dodaje cx do bx. Po tej operacji bx wskazuje na cl'ty element tablicy
 		shr cx, 1
-		mov ax, word ptr ds:[bx]
-		add di, ax
+		mov ax, word ptr ds:[bx] ; ax ustawiam na wartosc elementu tablicy pod indeksem bx
+		add di, ax ; dodaje do di ax. Po tej operacji di wskazuje na cl'ty string w tablicy numberstrings
 		call str_cmp_equal
-		cmp ax, 1
-		je found_the_string1
+		cmp ax, 1 ; jezeli dwa stringi sa rowne
+		je found_the_string1 ; wyskocz z petli
 		inc cl
 	jmp pre_loop1_fill_the_numbers
 	
 	found_the_string1:
 	
-	mov byte ptr ds:[number1], cl
+	mov byte ptr ds:[number1], cl ; zapisz cl w number1
 	
 	
-	mov cx, 0
+	xor cx, cx                                ; j. w.
 	pre_loop2_fill_the_numbers:
 	cmp cl, 10
 	je error_fill_the_numbers
@@ -217,7 +216,7 @@ fill_the_numbers:
 	
 	ret
 	
-	error_fill_the_numbers:
+	error_fill_the_numbers: ; jezeli jest blad, to zapisz to w error1 i wyjdz z funkcji
 	mov al, 4
 	mov byte ptr ds:[error1], al
 	
@@ -226,43 +225,36 @@ fill_the_numbers:
 	
 	
 	
-str_cmp_equal: ; expects si and di to be offsets of the strings to compare
-	push si
-	push di
+str_cmp_equal: ; Oczekuje w si i di offsetow na stringi do porownania. Jesli sa rowne, to w ax zostawia 1, jesli nie, to 0. Korzysta z: ax, si, di
 	pre_loop_str_cmp_equal:
-	cmp byte ptr ds:[si], '$'
+	cmp byte ptr ds:[si], '$' ; dopóki si ni jest dolarem, to zapetlaj
 	je exit_loop_str_cmp_equal
 	
-		mov al, byte ptr ds:[di]
+		mov al, byte ptr ds:[di] ; sprawdzaj kolejne znaki
 		cmp byte ptr ds:[si], al
-		jne return_false_str_cmp_equal
+		jne return_false_str_cmp_equal ; jesli nie sa rowne, to zwroc 0
 		
 		inc si
 		inc di
 	jmp pre_loop_str_cmp_equal
 	exit_loop_str_cmp_equal:
 	
-	mov al, byte ptr ds:[si]
-	cmp byte ptr ds:[di], al
+	cmp byte ptr ds:[di], '$' ; jezeli po wyjsciu z petli di tez wskazuje na dolar, to zwroc 1
 	je return_true_str_cmp_equal
 	jne return_false_str_cmp_equal
 	
 	return_false_str_cmp_equal:
-		pop di
-		pop si
 		mov ax, 0
 		ret
 	
 	return_true_str_cmp_equal:
-		pop di
-		pop si
 		mov ax, 1
 		ret
 	
 	ret
 	
-remove_spaces_and_CR_on_the_end:
-	mov al, ds:[inputLength]
+remove_spaces_and_CR_on_the_end: ; usuwa spacje i znaki CR z konca linii. Korzysta z ax, bx, cx
+	mov al, ds:[inputLength] ; wczytaj dlugosc wczytanego lancucha
 	mov bx, offset input1
 	xor ah, ah
 	add bx, ax
@@ -270,11 +262,11 @@ remove_spaces_and_CR_on_the_end:
 	mov cx, offset input1
 	dec cx
 	
-	mov byte ptr ds:[bx], '$'
+	mov byte ptr ds:[bx], '$' ; na bx'te miejsce wpisz dolar ( usuwa to z konca znak CR )
 	dec bx
 	
 	
-	pre_loop_remove_spaces_on_the_end:
+	pre_loop_remove_spaces_on_the_end: ; dopóki ostatnim znakiem jest spacja, wstawiaj za jej miejsce dolar
 	cmp byte ptr ds:[bx], ' '
 	jne exit_loop_remove_spaces_on_the_end
 	cmp bx, cx
@@ -288,62 +280,55 @@ remove_spaces_and_CR_on_the_end:
 	
 	ret
     
-handle_errors_main:
+handle_errors_main: ; sprawdza, czy error1 zawiera blad, jesli tak, to wypisuje komunikat i wychodzi z programu. Korzysta z: ax, dx
     
-    mov bx, offset error1
-    mov ah, 0
-    cmp byte ptr ds:[bx], ah
+    cmp byte ptr ds:[error1], 0 ; sprawdza dla kolejnych typow bledow czy on wystapil
     je no_error_main
-    mov ah, 1
-    cmp byte ptr ds:[bx], ah
+    cmp byte ptr ds:[error1], 1
     je too_many_arguments_error_main
-    mov ah, 2
-    cmp byte ptr ds:[bx], ah
+    cmp byte ptr ds:[error1], 2
     je too_little_arguments_error_main
-    mov ah, 3
-    cmp byte ptr ds:[bx], ah
+    cmp byte ptr ds:[error1], 3
     je empty_operation_or_number_error_main
-    mov ah, 4
-    cmp byte ptr ds:[bx], ah
+    cmp byte ptr ds:[error1], 4
     je parsing_number_error_main
-    mov ah, 5
-    cmp byte ptr ds:[bx], ah
+    cmp byte ptr ds:[error1], 5
     je invalid_operation_error_main
     
     jne other_error_main
     
     too_many_arguments_error_main:
-    mov dx, offset error_mssg1
+    mov dx, offset error_mssg1 ; wypisz na ekran odpowiedni komunikat
     mov ah, 9
     int 21h
     jmp other_error_main
     
     too_little_arguments_error_main:
-    mov dx, offset error_mssg2
+    mov dx, offset error_mssg2 ; j. w.
     mov ah, 9
     int 21h
     jmp other_error_main
 	
 	empty_operation_or_number_error_main:
-    mov dx, offset error_mssg3
+    mov dx, offset error_mssg3 ; j. w.
     mov ah, 9
     int 21h
     jmp other_error_main
 	
 	parsing_number_error_main:
-    mov dx, offset error_mssg4
+    mov dx, offset error_mssg4 ; j. w.
     mov ah, 9
     int 21h
     jmp other_error_main
 	
 	invalid_operation_error_main:
-    mov dx, offset error_mssg5
+    mov dx, offset error_mssg5 ; j. w.
     mov ah, 9
     int 21h
     jmp other_error_main
     
     other_error_main:
-    mov dx, offset error_mssg_default
+    mov dx, offset error_mssg_default ; j. w.
     mov ah, 9
     int 21h
     mov al, 1
@@ -355,7 +340,7 @@ handle_errors_main:
 	ret
     
 
-split_string:   ; funkcja dzielaca string na wyrazy. po wykonaniu ustawia si i dx na offset tuz po wyrazie. 
+split_string:   ; funkcja dzielaca string na wyrazy. po wykonaniu ustawia si i dx na offset tuz po wyrazie. Mozna dzieki temu wykonac ta funkcje po raz kolejny i zczyta dalsze slowa
                 ; Oczekuje offsetu na input w dx, a dest w ax. Korzysta z: si, di, dx, ax, bl
                 ; Ustawia input_ending na ostatni znak, ktory przerwal petle
 	mov si, dx ; "argumentem" funkcji jest string source
@@ -381,15 +366,14 @@ split_string:   ; funkcja dzielaca string na wyrazy. po wykonaniu ustawia si i d
     mov ah, '$'
 	mov byte ptr ds:[di], ah ; ustawiam dolar na koncu numberstring
     
-    mov di, offset input_ending
-    mov bh, ds:[si]
-    mov byte ptr ds:[di], bh
+    mov bh, ds:[si] ; ustawiam input ending na ustatni znak. Wykorzystuje to potem do sprawdzenia bledu.
+    mov byte ptr ds:[input_ending], bh
     
     inc si
     mov dx, si
 	ret
     
-call_split_strings:
+call_split_strings: ; wykonuje split_string dla trzech kolejnych slow, a nastepnie sprawdza wystapienie bledow wejscia. Korzysta z: ax, bx, dx, di, si
 	mov dx, offset input1
     mov ax, offset numberstring1
 	call split_string
@@ -399,43 +383,33 @@ call_split_strings:
     
     mov ax, offset numberstring2
 	call split_string
+	
+	; obsluga bledow
     
-    mov ah, ' '
-    mov bx, offset input_ending
-    mov al, ds:[bx]
-    cmp ah, al
+    cmp byte ptr ds:[input_ending], ' '
     jne no_too_many_arguments_error_call_split_strings
     
-    mov al, 1
-    mov ds:[error1], al
+    mov ds:[error1], 1
     
     no_too_many_arguments_error_call_split_strings:
     
-    mov ah, '$'
-    mov al, ds:[numberstring2]
-    cmp ah, al
+    cmp ds:[numberstring2], '$'
     jne no_too_little_arguments_error_call_split_strings
     
-    mov al, 2
-    mov ds:[error1], al
+    mov ds:[error1], 2
     
     no_too_little_arguments_error_call_split_strings:
     
-    mov ah, '$'
-    mov al, ds:[numberstring1]
-    cmp ah, al
+    cmp ds:[numberstring1], '$'
     je parsing_error_call_split_strings
     
-    mov ah, '$'
-    mov al, ds:[operation]
-    cmp ah, al
+    cmp ds:[operation], '$'
     je parsing_error_call_split_strings
     
 	jmp no_parsing_error_call_split_strings
     
     parsing_error_call_split_strings:
-    mov al, 3
-    mov ds:[error1], al
+    mov ds:[error1], 3
 	
 	no_parsing_error_call_split_strings:
     
