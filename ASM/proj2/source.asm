@@ -33,7 +33,7 @@ start1:
 
 	main_loop:
 		jz dont_update_ellipse
-			call clear_screen
+			;call clear_screen
 			call draw_ellipse
 		dont_update_ellipse:
 		call wait_for_key
@@ -46,7 +46,6 @@ start1:
 clear_screen:
 	mov cx, 64000
 	loop_clear_screen:
-		dec cx
 		mov bx, cx
 		mov byte ptr es:[bx], 0
 	loop loop_clear_screen
@@ -55,48 +54,66 @@ clear_screen:
 x	dw 	0
 y	dw 	0
 result dw 0
+buffer dw 0
 
 draw_ellipse:
-	finit
 	mov cx, 64000
 	loop_draw_ellipse:
+        finit
 		dec cx
 		mov ax, cx
-		div 320
-		mov word ptr cs:[x], ax
-		mov word ptr cs:[y], dx
+        mov word ptr cs:[buffer], 320
+		div word ptr cs:[buffer]
+		mov word ptr cs:[x], dx
+		mov word ptr cs:[y], ax
 		fild word ptr cs:[x]
-		fsub 160
+        mov word ptr cs:[buffer], 160
+        fild word ptr cs:[buffer]
+		fsub
 		fild word ptr cs:[x]
-		fsub 160
-		fmul 
+        mov word ptr cs:[buffer], 160
+        fild word ptr cs:[buffer]
+		fsub
+		fmul
 		fild word ptr cs:[ellipse_width]
 		fild word ptr cs:[ellipse_width]
 		fmul
 		fdiv
 		fild word ptr cs:[y]
-		fsub 100
+        mov word ptr cs:[buffer], 100
+        fild word ptr cs:[buffer]
+		fsub
 		fild word ptr cs:[y]
-		fsub 100
+        mov word ptr cs:[buffer], 100
+        fild word ptr cs:[buffer]
+		fsub
 		fmul
 		fild word ptr cs:[ellipse_height]
 		fild word ptr cs:[ellipse_height]
 		fmul
 		fdiv
-		fild 1000
+        mov word ptr cs:[buffer], 1000
+        fild word ptr cs:[buffer]
 		fmul
 		fist result
 		mov ax, word ptr cs:[result]
 		cmp ax, 1000
-		jg draw_ellipse_end
+		jg dont_draw_ellipse
 			mov bx, cx
 			mov byte ptr es:[bx], 1
+            jmp draw_ellipse_end
+        dont_draw_ellipse:
+			mov bx, cx
+			mov byte ptr es:[bx], 0
 		draw_ellipse_end:
-
-	loop loop_draw_ellipse
+    cmp cx, 0
+	jne loop_draw_ellipse
 	ret
 
 wait_for_key:
+	xor ax, ax
+    mov ah, 08h
+    int 21h
 	xor ax, ax
 	mov ah, 01h
 	int 16h
@@ -109,6 +126,8 @@ wait_for_key:
 	je detected_left_key
 	cmp ah, 4dh
 	je detected_right_key
+	cmp ah, 01h
+	je detected_escape_key
 
 	detected_up_key:
 		mov ax, word ptr ds:[ellipse_height]
@@ -129,6 +148,10 @@ wait_for_key:
 		mov ax, word ptr ds:[ellipse_width]
 		inc ax
 		mov word ptr ds:[ellipse_width], ax
+		ret
+	detected_escape_key:
+        mov ah, 4ch ; konczy program
+        int 21h
 		ret
 
 	end_wait_for_key:
