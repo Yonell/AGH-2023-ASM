@@ -33,7 +33,6 @@ start1:
 
 	main_loop:
 		jz dont_update_ellipse
-			;call clear_screen
 			call draw_ellipse
 		dont_update_ellipse:
 		call wait_for_key
@@ -43,77 +42,123 @@ start1:
 	mov ah, 4ch ; konczy program
 	int 21h
 
-clear_screen:
-	mov cx, 64000
-	loop_clear_screen:
-		mov bx, cx
-		mov byte ptr es:[bx], 0
-	loop loop_clear_screen
+x_pixel	dw 	0
+y_pixel	dw 	0
+result dw 0
+buffer320 dw 320
+buffer160 dw 160
+buffer100 dw 100
+
+; funkcja rysuje elipsę o zadanych wymiarach
+draw_ellipse:
+	mov word ptr cs:[x_pixel], 0
+	mov word ptr cs:[y_pixel], 0
+	loop_draw_ellipse_x:
+		loop_draw_ellipse_y:
+			finit
+
+			fild word ptr cs:[x_pixel]
+			fisub word ptr cs:[buffer160]
+			fild word ptr cs:[x_pixel]
+			fisub word ptr cs:[buffer160]
+			fmul
+			fild word ptr ds:[ellipse_width]
+			fild word ptr ds:[ellipse_width]
+			fmul
+			fdiv
+			fild word ptr cs:[y_pixel]
+			fisub word ptr cs:[buffer100]
+			fild word ptr cs:[y_pixel]
+			fisub word ptr cs:[buffer100]
+			fmul
+			fild word ptr ds:[ellipse_height]
+			fild word ptr ds:[ellipse_height]
+			fmul
+			fdiv
+			fadd
+
+			fistp word ptr cs:[result]
+
+			mov ax, word ptr cs:[result]
+			cmp ax, 1
+			jg dont_draw_ellipse
+				mov ax, word ptr cs:[y_pixel]
+				mul word ptr cs:[buffer320]
+				add ax, word ptr cs:[x_pixel]
+				mov bx, ax
+				mov byte ptr es:[bx], 3
+				jmp draw_ellipse_end
+			dont_draw_ellipse:
+				mov ax, word ptr cs:[y_pixel]
+				mul word ptr cs:[buffer320]
+				add ax, word ptr cs:[x_pixel]
+				mov bx, ax
+				mov byte ptr es:[bx], 0
+			draw_ellipse_end:
+			inc word ptr cs:[y_pixel]
+			cmp word ptr cs:[y_pixel], 100
+			jge end_loop_draw_ellipse_y
+		jmp loop_draw_ellipse_y
+		end_loop_draw_ellipse_y:
+		mov word ptr cs:[y_pixel], 0
+		inc word ptr cs:[x_pixel]
+		cmp word ptr cs:[x_pixel], 160
+		jge end_loop_draw_ellipse_x
+	jmp loop_draw_ellipse_x
+	end_loop_draw_ellipse_x:
+	call copy_ellipse_quarter
 	ret
 
-x	dw 	0
-y	dw 	0
-result dw 0
-buffer dw 0
+; funkcja kopiuje lewą górną ćwiartkę elipsy do pozostałych ćwiartek
+copy_ellipse_quarter:
+	mov word ptr cs:[x_pixel], 0
+	mov word ptr cs:[y_pixel], 0
+	loop_copy_ellipse_quarter_x:
+		loop_copy_ellipse_quarter_y:
+			mov ax, word ptr cs:[y_pixel]
+			mul word ptr cs:[buffer320]
+			add ax, word ptr cs:[x_pixel]
+			mov bx, ax
 
-draw_ellipse:
-	mov cx, 64000
-	loop_draw_ellipse:
-        finit
-		dec cx
-		mov ax, cx
-        mov word ptr cs:[buffer], 320
-		div word ptr cs:[buffer]
-		mov word ptr cs:[x], dx
-		mov word ptr cs:[y], ax
-		fild word ptr cs:[x]
-        mov word ptr cs:[buffer], 160
-        fild word ptr cs:[buffer]
-		fsub
-		fild word ptr cs:[x]
-        mov word ptr cs:[buffer], 160
-        fild word ptr cs:[buffer]
-		fsub
-		fmul
-		fild word ptr cs:[ellipse_width]
-		fild word ptr cs:[ellipse_width]
-		fmul
-		fdiv
-		fild word ptr cs:[y]
-        mov word ptr cs:[buffer], 100
-        fild word ptr cs:[buffer]
-		fsub
-		fild word ptr cs:[y]
-        mov word ptr cs:[buffer], 100
-        fild word ptr cs:[buffer]
-		fsub
-		fmul
-		fild word ptr cs:[ellipse_height]
-		fild word ptr cs:[ellipse_height]
-		fmul
-		fdiv
-        mov word ptr cs:[buffer], 1000
-        fild word ptr cs:[buffer]
-		fmul
-		fist result
-		mov ax, word ptr cs:[result]
-		cmp ax, 1000
-		jg dont_draw_ellipse
-			mov bx, cx
-			mov byte ptr es:[bx], 1
-            jmp draw_ellipse_end
-        dont_draw_ellipse:
-			mov bx, cx
-			mov byte ptr es:[bx], 0
-		draw_ellipse_end:
-    cmp cx, 0
-	jne loop_draw_ellipse
+			mov ax, 319
+			sub ax, word ptr cs:[x_pixel]
+			sub ax, word ptr cs:[x_pixel]
+			mov ch, byte ptr es:[bx]
+			add bx, ax
+			mov byte ptr es:[bx], ch
+
+			mov ax, 199
+			sub ax, word ptr cs:[y_pixel]
+			sub ax, word ptr cs:[y_pixel]
+			mul word ptr cs:[buffer320]
+			mov ch, byte ptr es:[bx]
+			add bx, ax
+			mov byte ptr es:[bx], ch
+
+			mov ax, 319
+			sub ax, word ptr cs:[x_pixel]
+			sub ax, word ptr cs:[x_pixel]
+			mov ch, byte ptr es:[bx]
+			sub bx, ax
+			mov byte ptr es:[bx], ch
+
+			inc word ptr cs:[y_pixel]
+			cmp word ptr cs:[y_pixel], 100
+			jg end_loop_copy_ellipse_quarter_y
+		jmp loop_copy_ellipse_quarter_y
+		end_loop_copy_ellipse_quarter_y:
+		mov word ptr cs:[y_pixel], 0
+		inc word ptr cs:[x_pixel]
+		cmp word ptr cs:[x_pixel], 160
+		jg end_loop_copy_ellipse_quarter_x
+	jmp loop_copy_ellipse_quarter_x
+	end_loop_copy_ellipse_quarter_x:
+	
 	ret
 
 wait_for_key:
-	xor ax, ax
-    mov ah, 08h
-    int 21h
+	;mov ax, 601h
+	;int 16h
 	xor ax, ax
 	mov ah, 01h
 	int 16h
@@ -150,6 +195,7 @@ wait_for_key:
 		mov word ptr ds:[ellipse_width], ax
 		ret
 	detected_escape_key:
+		call clear_screen
         mov ah, 4ch ; konczy program
         int 21h
 		ret
@@ -219,6 +265,14 @@ copy_command_line_args:
 	pop cx
 	loop p1
 
+	ret
+
+clear_screen:
+	mov cx, 64000
+	loop_clear_screen:
+		mov bx, cx
+		mov byte ptr es:[bx], 0
+	loop loop_clear_screen
 	ret
 
 	
