@@ -160,9 +160,9 @@ wait_for_key:
 	;mov ax, 601h
 	;int 16h
 	xor ax, ax
-	mov ah, 01h
+	;mov ah, 01h
 	int 16h
-	jz end_wait_for_key
+	;jz end_wait_for_key
 	cmp ah, 48h
 	je detected_up_key
 	cmp ah, 50h
