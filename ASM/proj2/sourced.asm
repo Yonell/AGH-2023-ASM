@@ -121,24 +121,16 @@ wait_for_key:
 	je detected_escape_key
 
 	detected_up_key:
-		mov ax, word ptr ds:[ellipse_height]
-		inc ax
-		mov word ptr ds:[ellipse_height], ax
+		inc word ptr ds:[ellipse_height]
 		ret
 	detected_down_key:
-		mov ax, word ptr ds:[ellipse_height]
-		dec ax
-		mov word ptr ds:[ellipse_height], ax
+		dec word ptr ds:[ellipse_height]
 		ret
 	detected_left_key:
-		mov ax, word ptr ds:[ellipse_width]
-		dec ax
-		mov word ptr ds:[ellipse_width], ax
+		dec word ptr ds:[ellipse_width]
 		ret
 	detected_right_key:
-		mov ax, word ptr ds:[ellipse_width]
-		inc ax
-		mov word ptr ds:[ellipse_width], ax
+		inc word ptr ds:[ellipse_width]
 		ret
 	detected_escape_key:
         mov ah, 4ch ; konczy program
