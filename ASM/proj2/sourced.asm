@@ -72,21 +72,15 @@ draw_ellipse:
 
 		fild word ptr cs:[x_pixel]
 		fisub word ptr cs:[buffer160]
-		fild word ptr cs:[x_pixel]
-		fisub word ptr cs:[buffer160]
-		fmul
+		fmul st, st
 		fild word ptr ds:[ellipse_width]
-		fild word ptr ds:[ellipse_width]
-		fmul
+		fmul st, st
 		fdiv
 		fild word ptr cs:[y_pixel]
 		fisub word ptr cs:[buffer100]
-		fild word ptr cs:[y_pixel]
-		fisub word ptr cs:[buffer100]
-		fmul
+		fmul st, st
 		fild word ptr ds:[ellipse_height]
-		fild word ptr ds:[ellipse_height]
-		fmul
+		fmul st, st
 		fdiv
 		fadd
 		fimul word ptr cs:[buffer1024]
